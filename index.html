@@ -1,0 +1,1833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Study Player</title>
+    <style>
+        /* General Styling */
+        :root {
+            --primary-bg: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+            --button-bg: #ff6b6b;
+            --button-hover-bg: #ff4757;
+            --transition-speed: 0.3s;
+            --error-color: #ff4757;
+            --success-color: #4BB543;
+            --note-color: #fffacd;
+            --bookmark-color: #ffcccb;
+            --history-color: #e6f7ff;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            background: var(--primary-bg);
+            background-color: #0f2027; /* Fallback */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            transition: background var(--transition-speed) ease-in-out;
+            color: #fff;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            font-size: 28px;
+            text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Video Container */
+        .video-container {
+            width: 90%;
+            max-width: 900px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+            text-align: center;
+            transition: transform 0.2s ease-in-out;
+        }
+
+        .video-container:hover {
+            transform: scale(1.02);
+        }
+
+        iframe {
+            width: 100%;
+            height: 500px;
+            border-radius: 10px;
+            background: black;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        /* Input & Button */
+        .input-group {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .input-group input {
+            width: 65%;
+            padding: 12px;
+            border: none;
+            border-radius: 30px;
+            font-size: 16px;
+            background: rgba(255, 255, 255, 0.2);
+            color: #fff;
+            text-align: center;
+            outline: none;
+            transition: var(--transition-speed);
+        }
+
+        .input-group input::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .input-group button {
+            padding: 12px 20px;
+            background: var(--button-bg);
+            color: white;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: var(--transition-speed);
+            font-weight: bold;
+        }
+
+        .input-group button:hover {
+            background: var(--button-hover-bg);
+            transform: scale(1.05);
+        }
+
+        /* Controls */
+        .controls {
+            margin-top: 15px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .controls button {
+            padding: 10px 15px;
+            border-radius: 30px;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: var(--transition-speed);
+        }
+
+        .controls button:hover {
+            opacity: 0.8;
+        }
+
+        .fullscreen-btn { background: #6f42c1; color: #fff; }
+        .reset-btn { background: #dc3545; color: #fff; }
+        .study-btn { background: #28a745; color: #fff; }
+        .history-btn { background: #17a2b8; color: #fff; }
+
+        /* Loading State */
+        #loading {
+            margin-top: 10px;
+            font-size: 16px;
+            display: none;
+        }
+
+        #loading::after {
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Messages */
+        .error-message {
+            color: var(--error-color);
+            margin-top: 10px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .success-message {
+            color: var(--success-color);
+            margin-top: 10px;
+            font-size: 14px;
+            display: none;
+        }
+
+        /* Owner Name */
+        .owner {
+            margin-top: 20px;
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .owner a {
+            color: var(--button-bg);
+            text-decoration: none;
+            transition: color var(--transition-speed);
+        }
+
+        .owner a:hover {
+            color: var(--button-hover-bg);
+        }
+
+        /* Study Tools Panel */
+        .study-panel {
+            display: none;
+            margin-top: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: left;
+        }
+
+        .study-tabs {
+            display: flex;
+            margin-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            overflow-x: auto;
+        }
+
+        .study-tab {
+            padding: 8px 15px;
+            cursor: pointer;
+            border-radius: 5px 5px 0 0;
+            margin-right: 5px;
+            background: rgba(255, 255, 255, 0.1);
+            white-space: nowrap;
+        }
+
+        .study-tab.active {
+            background: rgba(255, 255, 255, 0.3);
+            font-weight: bold;
+        }
+
+        .study-content {
+            display: none;
+        }
+
+        .study-content.active {
+            display: block;
+        }
+
+        /* Notes Section */
+        #study-notes {
+            width: 100%;
+            height: 100px;
+            padding: 10px;
+            border-radius: 5px;
+            border: none;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            margin-bottom: 10px;
+            resize: vertical;
+        }
+
+        .note-actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .saved-notes {
+            max-height: 200px;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+
+        .saved-note {
+            background: var(--note-color);
+            color: #333;
+            padding: 8px;
+            border-radius: 5px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .note-time {
+            font-weight: bold;
+            color: #0066cc;
+            margin-right: 10px;
+        }
+
+        .jump-to-note {
+            background: #6f42c1;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            padding: 3px 8px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-left: 5px;
+        }
+
+        /* Bookmarks Section */
+        .bookmark-actions {
+            margin-bottom: 15px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .saved-bookmarks {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .saved-bookmark {
+            background: var(--bookmark-color);
+            color: #333;
+            padding: 8px;
+            border-radius: 5px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* History Section */
+        .history-actions {
+            margin-bottom: 15px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .saved-history {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .saved-history-item {
+            background: var(--history-color);
+            color: #333;
+            padding: 8px;
+            border-radius: 5px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .history-title {
+            flex-grow: 1;
+            margin-right: 10px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .history-time {
+            font-size: 0.8em;
+            color: #666;
+            margin-right: 10px;
+        }
+
+        /* Pomodoro Timer */
+        .pomodoro-container {
+            text-align: center;
+        }
+
+        .timer-display {
+            font-size: 2.5rem;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+
+        .timer-controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            width: 100%;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: var(--button-bg);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        /* Focus Mode Elements */
+        #focus-timer-display {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 14px;
+            z-index: 10000;
+            display: none;
+        }
+
+        .minimal-controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 20px;
+            z-index: 1000;
+            display: flex;
+            gap: 10px;
+        }
+
+        .minimal-controls button {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            cursor: pointer;
+        }
+
+        .minimal-controls button:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Focus Mode Settings */
+        .focus-settings {
+            display: none;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+        }
+
+        .focus-settings label {
+            display: block;
+            margin: 10px 0 5px;
+        }
+
+        .focus-settings input[type="checkbox"] {
+            margin-right: 8px;
+        }
+
+        /* Distraction-free mode */
+        body.distraction-free {
+            padding: 0;
+            background: black;
+        }
+
+        body.distraction-free .video-container {
+            width: 100%;
+            max-width: none;
+            height: 100vh;
+            border-radius: 0;
+            padding: 0;
+            background: black;
+        }
+
+        body.distraction-free iframe {
+            height: 100vh;
+            border-radius: 0;
+            border: none;
+        }
+
+        body.distraction-free .input-group,
+        body.distraction-free .controls,
+        body.distraction-free .study-panel,
+        body.distraction-free .owner,
+        body.distraction-free h1 {
+            display: none;
+        }
+
+        body.distraction-free #focus-timer-display {
+            display: block;
+        }
+
+        body.distraction-free:hover .minimal-controls {
+            opacity: 1;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            iframe {
+                height: 300px;
+            }
+
+            .input-group {
+                flex-direction: column;
+            }
+
+            .input-group input {
+                width: 100%;
+            }
+
+            .controls button {
+                flex: 1 1 45%;
+                margin: 5px 0;
+            }
+
+            .note-actions button,
+            .bookmark-actions button,
+            .history-actions button {
+                flex: 1 1 100%;
+            }
+
+            .minimal-controls {
+                bottom: 10px;
+                padding: 8px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            iframe {
+                height: 200px;
+            }
+
+            .controls button {
+                flex: 1 1 100%;
+            }
+
+            .minimal-controls {
+                width: 90%;
+                justify-content: space-around;
+            }
+        }
+
+        /* Dark Mode */
+        .dark-mode {
+            --primary-bg: linear-gradient(135deg, #1e1e1e, #2c2c2c, #3d3d3d);
+            color: #fff;
+        }
+
+        /* Tooltip */
+        .tooltip {
+            position: relative;
+            display: inline-block;
+        }
+
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 120px;
+            background-color: #555;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -60px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <h1>📚 YouTube Study Player</h1>
+
+    <div class="video-container">
+        <!-- YouTube Live Player -->
+        <div id="youtube-player">
+            <iframe id="youtube-iframe" src=""
+                allow="autoplay; encrypted-media; picture-in-picture"
+                allowfullscreen>
+            </iframe>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="progress-container">
+            <div class="progress-bar" id="progress-bar"></div>
+        </div>
+
+        <!-- Input for YouTube Live Link -->
+        <div class="input-group">
+            <input type="text" id="video-link" placeholder="Enter YouTube Live Stream Link" aria-label="YouTube Live Link">
+            <button id="play-button" aria-label="Play Video">▶ Play</button>
+        </div>
+
+        <!-- Loading State -->
+        <div id="loading">Loading...</div>
+
+        <!-- Messages -->
+        <div id="error-message" class="error-message"></div>
+        <div id="success-message" class="success-message"></div>
+
+        <!-- Focus Mode Settings -->
+        <div class="focus-settings" id="focus-settings">
+            <h3>Focus Mode Settings</h3>
+            <label>
+                <input type="checkbox" id="hide-comments" checked> Hide comments
+            </label>
+            <label>
+                <input type="checkbox" id="hide-recommendations" checked> Hide recommendations
+            </label>
+            <label>
+                <input type="checkbox" id="hide-controls" checked> Auto-hide player controls
+            </label>
+            <label>
+                <input type="checkbox" id="enable-timer" checked> Show focus timer
+            </label>
+            <label>
+                <input type="checkbox" id="enable-ambient" checked> Ambient mode
+            </label>
+            <label>
+                <input type="checkbox" id="enable-exit-protection"> Enable exit protection
+            </label>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <button class="fullscreen-btn" id="fullscreen-button" aria-label="Toggle Fullscreen">⛶ Fullscreen</button>
+            <button class="study-btn" id="study-tools-button" aria-label="Study Tools">📚 Study Tools</button>
+            <button class="history-btn" id="history-button" aria-label="Watch History">🕒 History</button>
+            <button class="reset-btn" id="reset-button" aria-label="Reset Player">🔄 Reset</button>
+            <button id="focus-mode-button" aria-label="Focus Mode">🔍 Focus</button>
+            <button id="focus-settings-button" aria-label="Focus Settings">⚙️</button>
+            <button id="theme-toggle" aria-label="Toggle Dark Mode">🌙</button>
+        </div>
+
+        <!-- Minimal Controls (shown in focus mode) -->
+        <div class="minimal-controls">
+            <button id="minimal-play">⏯️</button>
+            <button id="minimal-fullscreen">⛶</button>
+            <button id="minimal-exit-focus">👁️ Exit</button>
+        </div>
+
+        <!-- Study Tools Panel -->
+        <div class="study-panel" id="study-panel">
+            <div class="study-tabs">
+                <div class="study-tab active" data-tab="notes">Notes</div>
+                <div class="study-tab" data-tab="bookmarks">Bookmarks</div>
+                <div class="study-tab" data-tab="pomodoro">Pomodoro</div>
+                <div class="study-tab" data-tab="progress">Progress</div>
+            </div>
+
+            <div class="study-content active" id="notes-content">
+                <textarea id="study-notes" placeholder="Take notes here..."></textarea>
+                <div class="note-actions">
+                    <button id="timestamp-note">Add Timestamp Note</button>
+                    <button id="save-notes">Save Notes</button>
+                    <button id="export-notes">Export Notes</button>
+                    <button id="clear-notes">Clear Notes</button>
+                </div>
+                <div class="saved-notes" id="saved-notes"></div>
+            </div>
+
+            <div class="study-content" id="bookmarks-content">
+                <div class="bookmark-actions">
+                    <button id="add-bookmark">Add Current Bookmark</button>
+                    <button id="clear-bookmarks">Clear All</button>
+                    <button id="export-bookmarks">Export Bookmarks</button>
+                </div>
+                <div class="saved-bookmarks" id="saved-bookmarks"></div>
+            </div>
+
+            <div class="study-content" id="pomodoro-content">
+                <div class="pomodoro-container">
+                    <h3>Pomodoro Timer</h3>
+                    <div class="timer-display" id="timer-display">25:00</div>
+                    <div class="timer-controls">
+                        <button id="start-pomodoro">Start</button>
+                        <button id="stop-pomodoro">Stop</button>
+                        <button id="reset-pomodoro">Reset</button>
+                    </div>
+                    <div>
+                        <label>Study Duration: </label>
+                        <select id="study-duration">
+                            <option value="25">25 min</option>
+                            <option value="30">30 min</option>
+                            <option value="45">45 min</option>
+                            <option value="60">60 min</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Break Duration: </label>
+                        <select id="break-duration">
+                            <option value="5">5 min</option>
+                            <option value="10">10 min</option>
+                            <option value="15">15 min</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="study-content" id="progress-content">
+                <h3>Video Progress</h3>
+                <div id="progress-stats">
+                    <p>Watched: <span id="watched-time">00:00:00</span></p>
+                    <p>Remaining: <span id="remaining-time">00:00:00</span></p>
+                    <p>Percentage: <span id="percentage-watched">0%</span></p>
+                </div>
+                <div class="progress-container">
+                    <div class="progress-bar" id="video-progress-bar" style="width: 0%"></div>
+                </div>
+                <button id="save-progress">Save Progress</button>
+            </div>
+        </div>
+
+        <!-- History Panel -->
+        <div class="study-panel" id="history-panel">
+            <div class="history-actions">
+                <button id="clear-history">Clear History</button>
+                <button id="export-history">Export History</button>
+            </div>
+            <div class="saved-history" id="saved-history"></div>
+        </div>
+    </div>
+
+    <!-- Focus Timer Display -->
+    <div id="focus-timer-display">00:00:00</div>
+
+    <!-- Owner Name -->
+    <div class="owner">
+        Made with ♥️ by <a href="https://www.instagram.com/i.shubham0418/" target="_blank">Shubham</a>
+    </div>
+
+    <script>
+        // DOM Elements
+        const videoLinkInput = document.getElementById('video-link');
+        const playButton = document.getElementById('play-button');
+        const youtubeIframe = document.getElementById('youtube-iframe');
+        const loadingElement = document.getElementById('loading');
+        const errorMessageElement = document.getElementById('error-message');
+        const successMessageElement = document.getElementById('success-message');
+        const fullscreenButton = document.getElementById('fullscreen-button');
+        const resetButton = document.getElementById('reset-button');
+        const themeToggle = document.getElementById('theme-toggle');
+        const studyToolsButton = document.getElementById('study-tools-button');
+        const historyButton = document.getElementById('history-button');
+        const studyPanel = document.getElementById('study-panel');
+        const historyPanel = document.getElementById('history-panel');
+        const focusModeButton = document.getElementById('focus-mode-button');
+        const focusSettingsButton = document.getElementById('focus-settings-button');
+        const focusSettings = document.getElementById('focus-settings');
+        const progressBar = document.getElementById('progress-bar');
+        const videoProgressBar = document.getElementById('video-progress-bar');
+        const focusTimerDisplay = document.getElementById('focus-timer-display');
+        const minimalControls = document.querySelector('.minimal-controls');
+        const minimalPlayButton = document.getElementById('minimal-play');
+        const minimalFullscreenButton = document.getElementById('minimal-fullscreen');
+        const minimalExitFocusButton = document.getElementById('minimal-exit-focus');
+        
+        // Focus Mode Settings Elements
+        const hideCommentsCheckbox = document.getElementById('hide-comments');
+        const hideRecommendationsCheckbox = document.getElementById('hide-recommendations');
+        const hideControlsCheckbox = document.getElementById('hide-controls');
+        const enableTimerCheckbox = document.getElementById('enable-timer');
+        const enableAmbientCheckbox = document.getElementById('enable-ambient');
+        const enableExitProtectionCheckbox = document.getElementById('enable-exit-protection');
+        
+        // Study Tools Elements
+        const studyTabs = document.querySelectorAll('.study-tab');
+        const studyContents = document.querySelectorAll('.study-content');
+        const studyNotes = document.getElementById('study-notes');
+        const timestampNoteButton = document.getElementById('timestamp-note');
+        const saveNotesButton = document.getElementById('save-notes');
+        const exportNotesButton = document.getElementById('export-notes');
+        const clearNotesButton = document.getElementById('clear-notes');
+        const savedNotes = document.getElementById('saved-notes');
+        const addBookmarkButton = document.getElementById('add-bookmark');
+        const clearBookmarksButton = document.getElementById('clear-bookmarks');
+        const exportBookmarksButton = document.getElementById('export-bookmarks');
+        const savedBookmarks = document.getElementById('saved-bookmarks');
+        
+        // History Elements
+        const clearHistoryButton = document.getElementById('clear-history');
+        const exportHistoryButton = document.getElementById('export-history');
+        const savedHistory = document.getElementById('saved-history');
+        
+        // Progress Elements
+        const saveProgressButton = document.getElementById('save-progress');
+        const watchedTimeElement = document.getElementById('watched-time');
+        const remainingTimeElement = document.getElementById('remaining-time');
+        const percentageWatchedElement = document.getElementById('percentage-watched');
+        
+        // Pomodoro Timer Elements
+        const timerDisplay = document.getElementById('timer-display');
+        const startPomodoroButton = document.getElementById('start-pomodoro');
+        const stopPomodoroButton = document.getElementById('stop-pomodoro');
+        const resetPomodoroButton = document.getElementById('reset-pomodoro');
+        const studyDurationSelect = document.getElementById('study-duration');
+        const breakDurationSelect = document.getElementById('break-duration');
+        
+        // Variables
+        let currentVideoId = '';
+        let currentVideoTitle = '';
+        let pomodoroInterval;
+        let currentTime = 25 * 60; // 25 minutes in seconds
+        let isPomodoroRunning = false;
+        let isBreakTime = false;
+        let videoDuration = 0;
+        let watchedSeconds = 0;
+        let progressInterval;
+        let lastUpdateTime = 0;
+        let focusStartTime = 0;
+        let focusTimerInterval;
+        let distractionObserver;
+
+        // Event Listeners
+        playButton.addEventListener('click', loadVideo);
+        videoLinkInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') loadVideo();
+        });
+        fullscreenButton.addEventListener('click', toggleFullscreen);
+        resetButton.addEventListener('click', resetPlayer);
+        youtubeIframe.addEventListener('error', handleVideoError);
+        themeToggle.addEventListener('click', toggleTheme);
+        studyToolsButton.addEventListener('click', toggleStudyPanel);
+        historyButton.addEventListener('click', toggleHistoryPanel);
+        focusModeButton.addEventListener('click', toggleFocusMode);
+        focusSettingsButton.addEventListener('click', toggleFocusSettings);
+        
+        // Minimal Controls Event Listeners
+        minimalPlayButton.addEventListener('click', togglePlayPause);
+        minimalFullscreenButton.addEventListener('click', toggleFullscreen);
+        minimalExitFocusButton.addEventListener('click', toggleFocusMode);
+        
+        // Focus Settings Event Listeners
+        hideCommentsCheckbox.addEventListener('change', saveFocusSettings);
+        hideRecommendationsCheckbox.addEventListener('change', saveFocusSettings);
+        hideControlsCheckbox.addEventListener('change', saveFocusSettings);
+        enableTimerCheckbox.addEventListener('change', saveFocusSettings);
+        enableAmbientCheckbox.addEventListener('change', saveFocusSettings);
+        enableExitProtectionCheckbox.addEventListener('change', saveFocusSettings);
+        
+        // Study Tools Event Listeners
+        studyTabs.forEach(tab => {
+            tab.addEventListener('click', switchStudyTab);
+        });
+        
+        timestampNoteButton.addEventListener('click', addTimestampNote);
+        saveNotesButton.addEventListener('click', saveNotes);
+        exportNotesButton.addEventListener('click', exportNotes);
+        clearNotesButton.addEventListener('click', clearNotes);
+        addBookmarkButton.addEventListener('click', addBookmark);
+        clearBookmarksButton.addEventListener('click', clearBookmarks);
+        exportBookmarksButton.addEventListener('click', exportBookmarks);
+        
+        // History Event Listeners
+        clearHistoryButton.addEventListener('click', clearHistory);
+        exportHistoryButton.addEventListener('click', exportHistory);
+        
+        // Progress Event Listeners
+        saveProgressButton.addEventListener('click', saveVideoProgress);
+        
+        // Pomodoro Event Listeners
+        startPomodoroButton.addEventListener('click', startPomodoro);
+        stopPomodoroButton.addEventListener('click', stopPomodoro);
+        resetPomodoroButton.addEventListener('click', resetPomodoro);
+        studyDurationSelect.addEventListener('change', updateTimerDisplay);
+
+        // Initialize
+        loadSavedData();
+        updateTimerDisplay();
+        loadWatchHistory();
+        loadFocusSettings();
+
+        // Load Video Function
+        function loadVideo() {
+            const videoLink = videoLinkInput.value.trim();
+            
+            if (!isValidYouTubeLink(videoLink)) {
+                showError("Please enter a valid YouTube video or live stream link.");
+                return;
+            }
+
+            const videoId = getYouTubeVideoId(videoLink);
+            if (!videoId) {
+                showError("Invalid YouTube link. Please check the URL.");
+                return;
+            }
+
+            currentVideoId = videoId;
+            loadingElement.style.display = 'block';
+            errorMessageElement.style.display = 'none';
+            successMessageElement.style.display = 'none';
+
+            // Fetch video title (this is a simplified approach)
+            fetchVideoTitle(videoId).then(title => {
+                currentVideoTitle = title || "Untitled Video";
+                
+                setTimeout(() => {
+                    loadingElement.style.display = 'none';
+                    youtubeIframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&enablejsapi=1`;
+                    youtubeIframe.dataset.videoId = videoId;
+                    
+                    // Load saved data for this video
+                    loadVideoNotes(videoId);
+                    loadVideoBookmarks(videoId);
+                    loadVideoProgress(videoId);
+                    
+                    // Add to watch history
+                    addToWatchHistory(videoId, currentVideoTitle);
+                    
+                    // Start tracking progress
+                    startProgressTracking();
+                }, 1000);
+            }).catch(() => {
+                currentVideoTitle = "Untitled Video";
+                loadingElement.style.display = 'none';
+                youtubeIframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&enablejsapi=1`;
+                youtubeIframe.dataset.videoId = videoId;
+                
+                // Load saved data for this video
+                loadVideoNotes(videoId);
+                loadVideoBookmarks(videoId);
+                loadVideoProgress(videoId);
+                
+                // Add to watch history
+                addToWatchHistory(videoId, currentVideoTitle);
+                
+                // Start tracking progress
+                startProgressTracking();
+            });
+        }
+
+        // Simplified function to fetch video title
+        function fetchVideoTitle(videoId) {
+            return new Promise((resolve, reject) => {
+                // In a real app, you would use the YouTube API here
+                // This is a placeholder that will work for some videos
+                fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${videoId}`)
+                    .then(response => response.json())
+                    .then(data => resolve(data.title))
+                    .catch(error => reject(error));
+            });
+        }
+
+        // Validate YouTube Link
+        function isValidYouTubeLink(url) {
+            const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+/;
+            return youtubeRegex.test(url);
+        }
+
+        // Extract YouTube Video ID
+        function getYouTubeVideoId(url) {
+            const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+            const match = url.match(regExp);
+            
+            if (!match || match[2].length !== 11) {
+                const liveMatch = url.match(/youtube\.com\/live\/([^#&?]+)/);
+                if (liveMatch) return liveMatch[1];
+                
+                const shortMatch = url.match(/youtu.be\/([^#&?]+)/);
+                if (shortMatch) return shortMatch[1];
+            }
+            
+            return (match && match[2].length === 11) ? match[2] : null;
+        }
+
+        // Toggle Fullscreen
+        function toggleFullscreen() {
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            } else {
+                if (youtubeIframe.requestFullscreen) {
+                    youtubeIframe.requestFullscreen().catch(err => {
+                        showError("Fullscreen request failed. Please try again.");
+                    });
+                } else if (youtubeIframe.webkitRequestFullscreen) {
+                    youtubeIframe.webkitRequestFullscreen();
+                } else if (youtubeIframe.mozRequestFullScreen) {
+                    youtubeIframe.mozRequestFullScreen();
+                } else if (youtubeIframe.msRequestFullscreen) {
+                    youtubeIframe.msRequestFullscreen();
+                } else {
+                    showError("Fullscreen is not supported in your browser.");
+                }
+            }
+        }
+
+        // Listen for fullscreen changes
+        document.addEventListener('fullscreenchange', updateFullscreenButton);
+        document.addEventListener('webkitfullscreenchange', updateFullscreenButton);
+        document.addEventListener('mozfullscreenchange', updateFullscreenButton);
+        document.addEventListener('msfullscreenchange', updateFullscreenButton);
+
+        function updateFullscreenButton() {
+            if (document.fullscreenElement || 
+                document.webkitFullscreenElement || 
+                document.mozFullScreenElement || 
+                document.msFullscreenElement) {
+                fullscreenButton.textContent = '⛶ Exit Fullscreen';
+                minimalFullscreenButton.textContent = '⛶ Exit';
+            } else {
+                fullscreenButton.textContent = '⛶ Fullscreen';
+                minimalFullscreenButton.textContent = '⛶';
+            }
+        }
+
+        // Reset Player
+        function resetPlayer() {
+            videoLinkInput.value = '';
+            youtubeIframe.src = '';
+            errorMessageElement.textContent = '';
+            successMessageElement.textContent = '';
+            studyNotes.value = '';
+            savedNotes.innerHTML = '';
+            savedBookmarks.innerHTML = '';
+            currentVideoId = '';
+            currentVideoTitle = '';
+            stopProgressTracking();
+            resetProgressBar();
+            stopFocusTimer();
+        }
+
+        // Show Error Message
+        function showError(message) {
+            errorMessageElement.textContent = message;
+            errorMessageElement.style.display = 'block';
+            setTimeout(() => errorMessageElement.style.display = 'none', 5000);
+        }
+
+        // Show Success Message
+        function showSuccess(message) {
+            successMessageElement.textContent = message;
+            successMessageElement.style.display = 'block';
+            setTimeout(() => successMessageElement.style.display = 'none', 3000);
+        }
+
+        // Handle Video Errors
+        function handleVideoError() {
+            showError("Failed to load the video. Please check the link and try again.");
+        }
+
+        // Toggle Dark Mode
+        function toggleTheme() {
+            document.body.classList.toggle('dark-mode');
+            themeToggle.textContent = document.body.classList.contains('dark-mode') ? '☀️' : '🌙';
+            localStorage.setItem('yt-dark-mode', document.body.classList.contains('dark-mode'));
+        }
+
+        // Toggle Study Panel
+        function toggleStudyPanel() {
+            studyPanel.style.display = studyPanel.style.display === 'block' ? 'none' : 'block';
+            if (studyPanel.style.display === 'block') {
+                historyPanel.style.display = 'none';
+                focusSettings.style.display = 'none';
+            }
+        }
+
+        // Toggle History Panel
+        function toggleHistoryPanel() {
+            historyPanel.style.display = historyPanel.style.display === 'block' ? 'none' : 'block';
+            if (historyPanel.style.display === 'block') {
+                studyPanel.style.display = 'none';
+                focusSettings.style.display = 'none';
+            }
+        }
+
+        // Toggle Focus Settings
+        function toggleFocusSettings() {
+            focusSettings.style.display = focusSettings.style.display === 'block' ? 'none' : 'block';
+            if (focusSettings.style.display === 'block') {
+                studyPanel.style.display = 'none';
+                historyPanel.style.display = 'none';
+            }
+        }
+
+        // Toggle Play/Pause
+        function togglePlayPause() {
+            youtubeIframe.contentWindow.postMessage(JSON.stringify({
+                event: 'command',
+                func: document.querySelector('.ytp-play-button').getAttribute('aria-label') === 'Pause' ? 'pauseVideo' : 'playVideo'
+            }), '*');
+        }
+
+        // Enhanced Focus Mode
+        function toggleFocusMode() {
+            const isFocusMode = document.body.classList.toggle('distraction-free');
+            
+            // Save scroll position before entering focus mode
+            if (isFocusMode) {
+                localStorage.setItem('pre-focus-scroll', window.scrollY);
+                startFocusTimer();
+                blockDistractions();
+                if (enableAmbientCheckbox.checked) {
+                    document.body.style.background = 'black';
+                }
+            } else {
+                stopFocusTimer();
+                stopBlockingDistractions();
+                document.body.style.background = '';
+                
+                // Restore scroll position after exiting
+                setTimeout(() => {
+                    window.scrollTo(0, parseInt(localStorage.getItem('pre-focus-scroll')) || 0);
+                }, 100);
+            }
+            
+            // Toggle browser fullscreen along with custom focus mode
+            if (isFocusMode && !document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(console.error);
+            } else if (!isFocusMode && document.fullscreenElement) {
+                document.exitFullscreen();
+            }
+            
+            // Update UI
+            focusModeButton.textContent = isFocusMode ? '👁️ Exit Focus' : '🔍 Focus';
+            localStorage.setItem('yt-focus-mode', isFocusMode);
+            
+            // Show/hide focus timer based on settings
+            if (enableTimerCheckbox.checked) {
+                focusTimerDisplay.style.display = isFocusMode ? 'block' : 'none';
+            } else {
+                focusTimerDisplay.style.display = 'none';
+            }
+            
+            // Enable/disable exit protection
+            if (isFocusMode && enableExitProtectionCheckbox.checked) {
+                window.addEventListener('beforeunload', confirmExit);
+            } else {
+                window.removeEventListener('beforeunload', confirmExit);
+            }
+        }
+
+        function confirmExit(e) {
+            e.preventDefault();
+            return e.returnValue = 'Are you sure you want to leave focus mode?';
+        }
+
+        // Block distracting elements
+        function blockDistractions() {
+            if (hideCommentsCheckbox.checked) {
+                document.querySelectorAll('#comments, .ytd-comments').forEach(el => el.style.display = 'none');
+            }
+            if (hideRecommendationsCheckbox.checked) {
+                document.querySelectorAll('#secondary, .ytd-watch-next-secondary-results-renderer').forEach(el => el.style.display = 'none');
+            }
+            if (hideControlsCheckbox.checked) {
+                document.querySelectorAll('.ytp-chrome-bottom, .ytp-gradient-bottom').forEach(el => el.style.opacity = '0');
+            }
+            
+            // Set up mutation observer to keep blocking new elements
+            distractionObserver = new MutationObserver(() => {
+                blockDistractions();
+            });
+            distractionObserver.observe(document.body, { subtree: true, childList: true });
+        }
+
+        function stopBlockingDistractions() {
+            if (distractionObserver) {
+                distractionObserver.disconnect();
+            }
+            document.querySelectorAll('#comments, .ytd-comments, #secondary, .ytd-watch-next-secondary-results-renderer').forEach(el => el.style.display = '');
+            document.querySelectorAll('.ytp-chrome-bottom, .ytp-gradient-bottom').forEach(el => el.style.opacity = '1');
+        }
+
+        // Focus Timer Functions
+        function startFocusTimer() {
+            if (!enableTimerCheckbox.checked) return;
+            
+            focusStartTime = Date.now();
+            updateFocusTimer();
+            focusTimerInterval = setInterval(updateFocusTimer, 1000);
+        }
+
+        function stopFocusTimer() {
+            if (focusTimerInterval) {
+                clearInterval(focusTimerInterval);
+                focusTimerInterval = null;
+                
+                // Log the focus session
+                if (focusStartTime) {
+                    logFocusSession(focusStartTime, Date.now());
+                }
+            }
+        }
+
+        function updateFocusTimer() {
+            const elapsed = Math.floor((Date.now() - focusStartTime) / 1000);
+            const hours = Math.floor(elapsed / 3600);
+            const minutes = Math.floor((elapsed % 3600) / 60);
+            const seconds = elapsed % 60;
+            
+            focusTimerDisplay.textContent = 
+                `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function logFocusSession(start, end) {
+            const sessions = JSON.parse(localStorage.getItem('yt-focus-sessions') || '[]');
+            sessions.push({
+                start: new Date(start).toISOString(),
+                end: new Date(end).toISOString(),
+                duration: end - start,
+                video: currentVideoId,
+                videoTitle: currentVideoTitle
+            });
+            localStorage.setItem('yt-focus-sessions', JSON.stringify(sessions));
+        }
+
+        // Load and Save Focus Settings
+        function loadFocusSettings() {
+            const settings = JSON.parse(localStorage.getItem('yt-focus-settings') || '{}');
+            
+            if (settings.hideComments !== undefined) hideCommentsCheckbox.checked = settings.hideComments;
+            if (settings.hideRecommendations !== undefined) hideRecommendationsCheckbox.checked = settings.hideRecommendations;
+            if (settings.hideControls !== undefined) hideControlsCheckbox.checked = settings.hideControls;
+            if (settings.enableTimer !== undefined) enableTimerCheckbox.checked = settings.enableTimer;
+            if (settings.enableAmbient !== undefined) enableAmbientCheckbox.checked = settings.enableAmbient;
+            if (settings.enableExitProtection !== undefined) enableExitProtectionCheckbox.checked = settings.enableExitProtection;
+        }
+
+        function saveFocusSettings() {
+            const settings = {
+                hideComments: hideCommentsCheckbox.checked,
+                hideRecommendations: hideRecommendationsCheckbox.checked,
+                hideControls: hideControlsCheckbox.checked,
+                enableTimer: enableTimerCheckbox.checked,
+                enableAmbient: enableAmbientCheckbox.checked,
+                enableExitProtection: enableExitProtectionCheckbox.checked
+            };
+            localStorage.setItem('yt-focus-settings', JSON.stringify(settings));
+            
+            // Update focus mode if currently active
+            if (document.body.classList.contains('distraction-free')) {
+                if (!enableTimerCheckbox.checked) {
+                    focusTimerDisplay.style.display = 'none';
+                } else if (focusTimerDisplay.style.display !== 'block') {
+                    focusTimerDisplay.style.display = 'block';
+                }
+                
+                if (enableExitProtectionCheckbox.checked) {
+                    window.addEventListener('beforeunload', confirmExit);
+                } else {
+                    window.removeEventListener('beforeunload', confirmExit);
+                }
+            }
+        }
+
+        // [Rest of your existing functions remain unchanged...]
+        // Study Tab Switching, Note Taking, Bookmarks, History, Progress Tracking, Pomodoro Timer, etc.
+
+        // Study Tab Switching
+        function switchStudyTab(e) {
+            const tabId = e.target.dataset.tab;
+            
+            studyTabs.forEach(tab => tab.classList.remove('active'));
+            studyContents.forEach(content => content.classList.remove('active'));
+            
+            e.target.classList.add('active');
+            document.getElementById(`${tabId}-content`).classList.add('active');
+        }
+
+        // Add Timestamp Note
+        function addTimestampNote() {
+            if (!currentVideoId) {
+                showError("No video loaded. Please load a video first.");
+                return;
+            }
+
+            const noteText = studyNotes.value.trim();
+            if (!noteText) {
+                showError("Please enter a note first.");
+                return;
+            }
+
+            // Get current time from YouTube player
+            getCurrentTime().then(time => {
+                addNoteWithTime(noteText, time);
+            }).catch(error => {
+                console.error("Error getting current time:", error);
+                showError("Failed to get current time from video.");
+            });
+        }
+
+        function getCurrentTime() {
+            return new Promise((resolve, reject) => {
+                // This is a simplified approach - in a real app you'd use the YouTube API
+                const timeListener = function(event) {
+                    if (event.origin !== 'https://www.youtube.com') return;
+                    
+                    try {
+                        const data = JSON.parse(event.data);
+                        if (data && data.info && data.info.currentTime) {
+                            resolve(data.info.currentTime);
+                            window.removeEventListener('message', timeListener);
+                        }
+                    } catch (e) {
+                        console.error("Error parsing YouTube message:", e);
+                        reject(e);
+                    }
+                };
+                
+                window.addEventListener('message', timeListener);
+                
+                youtubeIframe.contentWindow.postMessage(JSON.stringify({
+                    event: 'command',
+                    func: 'getCurrentTime'
+                }), '*');
+                
+                // Fallback in case we don't get a response
+                setTimeout(() => {
+                    window.removeEventListener('message', timeListener);
+                    reject(new Error("Timeout getting current time"));
+                }, 1000);
+            });
+        }
+
+        function addNoteWithTime(noteText, time) {
+            const noteElement = document.createElement('div');
+            noteElement.className = 'saved-note';
+            noteElement.innerHTML = `
+                <span class="note-time">${formatTime(time)}</span>
+                <span class="note-text">${noteText}</span>
+                <button class="jump-to-note" data-time="${time}">Jump</button>
+            `;
+            savedNotes.appendChild(noteElement);
+            
+            // Add click event to jump button
+            noteElement.querySelector('.jump-to-note').addEventListener('click', function() {
+                seekToTime(this.dataset.time);
+            });
+            
+            studyNotes.value = '';
+            showSuccess("Note added with timestamp!");
+        }
+
+        // Format time (seconds to HH:MM:SS)
+        function formatTime(seconds) {
+            const date = new Date(0);
+            date.setSeconds(seconds);
+            return date.toISOString().substr(11, 8);
+        }
+
+        // Seek to specific time in video
+        function seekToTime(time) {
+            youtubeIframe.contentWindow.postMessage(JSON.stringify({
+                event: 'command',
+                func: 'seekTo',
+                args: [time, true]
+            }), '*');
+        }
+
+        // Save Notes to Local Storage
+        function saveNotes() {
+            if (!currentVideoId) {
+                showError("No video loaded. Please load a video first.");
+                return;
+            }
+
+            const notes = Array.from(savedNotes.children).map(note => {
+                return {
+                    time: note.querySelector('.note-time').textContent,
+                    text: note.querySelector('.note-text').textContent,
+                    timestamp: note.querySelector('.jump-to-note').dataset.time
+                };
+            });
+
+            localStorage.setItem(`yt-notes-${currentVideoId}`, JSON.stringify(notes));
+            showSuccess("Notes saved successfully!");
+        }
+
+        // Clear Notes
+        function clearNotes() {
+            if (confirm("Are you sure you want to clear all notes for this video?")) {
+                savedNotes.innerHTML = '';
+                localStorage.removeItem(`yt-notes-${currentVideoId}`);
+                showSuccess("Notes cleared!");
+            }
+        }
+
+        // Export Notes
+        function exportNotes() {
+            if (!currentVideoId) {
+                showError("No video loaded. Please load a video first.");
+                return;
+            }
+
+            const notes = Array.from(savedNotes.children).map(note => {
+                return `${note.querySelector('.note-time').textContent} - ${note.querySelector('.note-text').textContent}`;
+            }).join('\n');
+
+            const blob = new Blob([notes], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `youtube-notes-${currentVideoId}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Load Saved Notes
+        function loadVideoNotes(videoId) {
+            savedNotes.innerHTML = '';
+            const savedData = localStorage.getItem(`yt-notes-${videoId}`);
+            if (savedData) {
+                const notes = JSON.parse(savedData);
+                notes.forEach(note => {
+                    const noteElement = document.createElement('div');
+                    noteElement.className = 'saved-note';
+                    noteElement.innerHTML = `
+                        <span class="note-time">${note.time}</span>
+                        <span class="note-text">${note.text}</span>
+                        <button class="jump-to-note" data-time="${note.timestamp}">Jump</button>
+                    `;
+                    savedNotes.appendChild(noteElement);
+                    
+                    noteElement.querySelector('.jump-to-note').addEventListener('click', function() {
+                        seekToTime(this.dataset.time);
+                    });
+                });
+            }
+        }
+
+        // Add Bookmark
+        function addBookmark() {
+            if (!currentVideoId) {
+                showError("No video loaded. Please load a video first.");
+                return;
+            }
+
+            getCurrentTime().then(time => {
+                addBookmarkWithTime(time);
+            }).catch(error => {
+                console.error("Error getting current time:", error);
+                showError("Failed to get current time from video.");
+            });
+        }
+
+        function addBookmarkWithTime(time) {
+            // Check if bookmark already exists at this time
+            const existingBookmark = Array.from(savedBookmarks.children).find(bookmark => {
+                return bookmark.querySelector('.jump-to-bookmark').dataset.time === time.toString();
+            });
+
+            if (existingBookmark) {
+                showError("Bookmark already exists at this time.");
+                return;
+            }
+
+            const bookmarkElement = document.createElement('div');
+            bookmarkElement.className = 'saved-bookmark';
+            bookmarkElement.innerHTML = `
+                <span class="bookmark-time">${formatTime(time)}</span>
+                <button class="jump-to-bookmark" data-time="${time}">Jump</button>
+                <button class="delete-bookmark">✕</button>
+            `;
+            savedBookmarks.appendChild(bookmarkElement);
+            
+            // Add click events
+            bookmarkElement.querySelector('.jump-to-bookmark').addEventListener('click', function() {
+                seekToTime(this.dataset.time);
+            });
+            
+            bookmarkElement.querySelector('.delete-bookmark').addEventListener('click', function() {
+                bookmarkElement.remove();
+                saveBookmarks();
+                showSuccess("Bookmark deleted!");
+            });
+            
+            saveBookmarks();
+            showSuccess("Bookmark added!");
+        }
+
+        // Save Bookmarks to Local Storage
+        function saveBookmarks() {
+            if (!currentVideoId) return;
+
+            const bookmarks = Array.from(savedBookmarks.children).map(bookmark => {
+                return bookmark.querySelector('.jump-to-bookmark').dataset.time;
+            });
+
+            localStorage.setItem(`yt-bookmarks-${currentVideoId}`, JSON.stringify(bookmarks));
+        }
+
+        // Clear All Bookmarks
+        function clearBookmarks() {
+            if (confirm("Are you sure you want to clear all bookmarks for this video?")) {
+                savedBookmarks.innerHTML = '';
+                localStorage.removeItem(`yt-bookmarks-${currentVideoId}`);
+                showSuccess("Bookmarks cleared!");
+            }
+        }
+
+        // Export Bookmarks
+        function exportBookmarks() {
+            if (!currentVideoId) {
+                showError("No video loaded. Please load a video first.");
+                return;
+            }
+
+            const bookmarks = Array.from(savedBookmarks.children).map(bookmark => {
+                return `${bookmark.querySelector('.bookmark-time').textContent}`;
+            }).join('\n');
+
+            const blob = new Blob([bookmarks], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `youtube-bookmarks-${currentVideoId}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Load Saved Bookmarks
+        function loadVideoBookmarks(videoId) {
+            savedBookmarks.innerHTML = '';
+            const savedData = localStorage.getItem(`yt-bookmarks-${videoId}`);
+            if (savedData) {
+                const bookmarks = JSON.parse(savedData);
+                bookmarks.forEach(time => {
+                    addBookmarkWithTime(time);
+                });
+            }
+        }
+
+        // Watch History Functions
+        function addToWatchHistory(videoId, title) {
+            const history = JSON.parse(localStorage.getItem('yt-watch-history') || '[]');
+            
+            // Remove if already exists (to avoid duplicates)
+            const existingIndex = history.findIndex(item => item.id === videoId);
+            if (existingIndex !== -1) {
+                history.splice(existingIndex, 1);
+            }
+            
+            // Add to beginning of array
+            history.unshift({
+                id: videoId,
+                title: title,
+                timestamp: new Date().toISOString(),
+                lastWatched: Date.now()
+            });
+            
+            // Keep only the last 50 items
+            if (history.length > 50) {
+                history.pop();
+            }
+            
+            localStorage.setItem('yt-watch-history', JSON.stringify(history));
+            updateHistoryDisplay();
+        }
+
+        function loadWatchHistory() {
+            updateHistoryDisplay();
+        }
+
+        function updateHistoryDisplay() {
+            savedHistory.innerHTML = '';
+            const history = JSON.parse(localStorage.getItem('yt-watch-history') || '[]');
+            
+            if (history.length === 0) {
+                savedHistory.innerHTML = '<p>No watch history yet.</p>';
+                return;
+            }
+            
+            history.forEach(item => {
+                const historyItem = document.createElement('div');
+                historyItem.className = 'saved-history-item';
+                
+                const now = new Date();
+                const watchedDate = new Date(item.timestamp);
+                let timeString = '';
+                
+                if (now.toDateString() === watchedDate.toDateString()) {
+                    timeString = 'Today at ' + watchedDate.toLocaleTimeString();
+                } else {
+                    timeString = watchedDate.toLocaleDateString() + ' ' + watchedDate.toLocaleTimeString();
+                }
+                
+                historyItem.innerHTML = `
+                    <span class="history-title" title="${item.title}">${item.title}</span>
+                    <span class="history-time">${timeString}</span>
+                    <button class="jump-to-history" data-videoid="${item.id}">Play</button>
+                `;
+                
+                savedHistory.appendChild(historyItem);
+                
+                historyItem.querySelector('.jump-to-history').addEventListener('click', function() {
+                    videoLinkInput.value = `https://www.youtube.com/watch?v=${this.dataset.videoid}`;
+                    loadVideo();
+                });
+            });
+        }
+
+        function clearHistory() {
+            if (confirm("Are you sure you want to clear your entire watch history?")) {
+                localStorage.removeItem('yt-watch-history');
+                updateHistoryDisplay();
+                showSuccess("Watch history cleared!");
+            }
+        }
+
+        function exportHistory() {
+            const history = JSON.parse(localStorage.getItem('yt-watch-history') || '[]');
+            if (history.length === 0) {
+                showError("No history to export.");
+                return;
+            }
+            
+            const historyText = history.map(item => {
+                return `${item.title} - Watched on ${new Date(item.timestamp).toLocaleString()}`;
+            }).join('\n');
+            
+            const blob = new Blob([historyText], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'youtube-watch-history.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Video Progress Tracking
+        function startProgressTracking() {
+            stopProgressTracking();
+            progressInterval = setInterval(updateProgress, 1000);
+        }
+
+        function stopProgressTracking() {
+            if (progressInterval) {
+                clearInterval(progressInterval);
+                progressInterval = null;
+            }
+        }
+
+        function updateProgress() {
+            getCurrentTime().then(currentTime => {
+                watchedSeconds = currentTime;
+                
+                // Get video duration (simplified - in a real app you'd use the YouTube API)
+                getVideoDuration().then(duration => {
+                    videoDuration = duration;
+                    updateProgressDisplay(currentTime, duration);
+                }).catch(() => {
+                    // Fallback if we can't get duration
+                    updateProgressDisplay(currentTime, 0);
+                });
+            }).catch(error => {
+                console.error("Error updating progress:", error);
+            });
+        }
+
+        function getVideoDuration() {
+            return new Promise((resolve, reject) => {
+                // This is a simplified approach - in a real app you'd use the YouTube API
+                const durationListener = function(event) {
+                    if (event.origin !== 'https://www.youtube.com') return;
+                    
+                    try {
+                        const data = JSON.parse(event.data);
+                        if (data && data.info && data.info.duration) {
+                            resolve(data.info.duration);
+                            window.removeEventListener('message', durationListener);
+                        }
+                    } catch (e) {
+                        console.error("Error parsing YouTube message:", e);
+                        reject(e);
+                    }
+                };
+                
+                window.addEventListener('message', durationListener);
+                
+                youtubeIframe.contentWindow.postMessage(JSON.stringify({
+                    event: 'command',
+                    func: 'getDuration'
+                }), '*');
+                
+                // Fallback in case we don't get a response
+                setTimeout(() => {
+                    window.removeEventListener('message', durationListener);
+                    reject(new Error("Timeout getting duration"));
+                }, 1000);
+            });
+        }
+
+        function updateProgressDisplay(currentTime, duration) {
+            // Update progress bar
+            if (duration > 0) {
+                const percentage = (currentTime / duration) * 100;
+                progressBar.style.width = `${percentage}%`;
+                videoProgressBar.style.width = `${percentage}%`;
+                
+                // Update stats
+                watchedTimeElement.textContent = formatTime(currentTime);
+                remainingTimeElement.textContent = formatTime(Math.max(0, duration - currentTime));
+                percentageWatchedElement.textContent = `${Math.round(percentage)}%`;
+            } else {
+                // Just show current time if we don't have duration
+                watchedTimeElement.textContent = formatTime(currentTime);
+                remainingTimeElement.textContent = "N/A";
+                percentageWatchedElement.textContent = "N/A";
+            }
+        }
+
+        function resetProgressBar() {
+            progressBar.style.width = '0%';
+            videoProgressBar.style.width = '0%';
+            watchedTimeElement.textContent = '00:00:00';
+            remainingTimeElement.textContent = '00:00:00';
+            percentageWatchedElement.textContent = '0%';
+        }
+
+        function loadVideoProgress(videoId) {
+            const savedProgress = localStorage.getItem(`yt-progress-${videoId}`);
+            if (savedProgress) {
+                const progress = JSON.parse(savedProgress);
+                watchedSeconds = progress.time || 0;
+                
+                // Seek to saved position if it's more than 5 seconds in
+                if (watchedSeconds > 5) {
+                    setTimeout(() => {
+                        seekToTime(watchedSeconds);
+                    }, 1000);
+                }
+            }
+        }
+
+        function saveVideoProgress() {
+            if (!currentVideoId) return;
+            
+            const progress = {
+                time: watchedSeconds,
+                savedAt: new Date().toISOString()
+            };
+            
+            localStorage.setItem(`yt-progress-${currentVideoId}`, JSON.stringify(progress));
+            showSuccess("Progress saved!");
+        }
+
+        // Pomodoro Timer Functions
+        function startPomodoro() {
+            if (isPomodoroRunning) return;
+            
+            isPomodoroRunning = true;
+            pomodoroInterval = setInterval(() => {
+                currentTime--;
+                updateTimerDisplay();
+                
+                if (currentTime <= 0) {
+                    clearInterval(pomodoroInterval);
+                    isPomodoroRunning = false;
+                    
+                    if (isBreakTime) {
+                        // Break is over, start study time
+                        isBreakTime = false;
+                        currentTime = parseInt(studyDurationSelect.value) * 60;
+                        alert("Break time is over! Time to study.");
+                        updateTimerDisplay();
+                    } else {
+                        // Study time is over, start break
+                        isBreakTime = true;
+                        currentTime = parseInt(breakDurationSelect.value) * 60;
+                        alert("Time's up! Take a break.");
+                        updateTimerDisplay();
+                    }
+                    
+                    // Restart timer if auto-continue is enabled
+                    if (localStorage.getItem('yt-pomodoro-auto') === 'true') {
+                        startPomodoro();
+                    }
+                }
+            }, 1000);
+        }
+
+        function stopPomodoro() {
+            clearInterval(pomodoroInterval);
+            isPomodoroRunning = false;
+        }
+
+        function resetPomodoro() {
+            stopPomodoro();
+            isBreakTime = false;
+            currentTime = parseInt(studyDurationSelect.value) * 60;
+            updateTimerDisplay();
+        }
+
+        function updateTimerDisplay() {
+            const minutes = Math.floor(currentTime / 60);
+            const seconds = currentTime % 60;
+            timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            timerDisplay.style.color = isBreakTime ? '#ff6b6b' : '#ffffff';
+        }
+
+        // Load All Saved Data
+        function loadSavedData() {
+            // Load theme preference
+            if (localStorage.getItem('yt-dark-mode') === 'true') {
+                document.body.classList.add('dark-mode');
+                themeToggle.textContent = '☀️';
+            }
+            
+            // Load focus mode preference
+            if (localStorage.getItem('yt-focus-mode') === 'true') {
+                document.body.classList.add('distraction-free');
+                focusModeButton.textContent = '👁️ Exit Focus';
+                focusTimerDisplay.style.display = 'block';
+            }
+            
+            // Load pomodoro settings
+            const savedStudyDuration = localStorage.getItem('yt-pomodoro-study');
+            if (savedStudyDuration) {
+                studyDurationSelect.value = savedStudyDuration;
+                currentTime = parseInt(savedStudyDuration) * 60;
+                updateTimerDisplay();
+            }
+            
+            const savedBreakDuration = localStorage.getItem('yt-pomodoro-break');
+            if (savedBreakDuration) {
+                breakDurationSelect.value = savedBreakDuration;
+            }
+        }
+
+        // Save preferences when changed
+        studyDurationSelect.addEventListener('change', () => {
+            localStorage.setItem('yt-pomodoro-study', studyDurationSelect.value);
+            if (!isPomodoroRunning) {
+                resetPomodoro();
+            }
+        });
+
+        breakDurationSelect.addEventListener('change', () => {
+            localStorage.setItem('yt-pomodoro-break', breakDurationSelect.value);
+        });
+    </script>
+</body>
+</html>
